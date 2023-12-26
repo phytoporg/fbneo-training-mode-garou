@@ -178,6 +178,14 @@ local defaultconfig = {
 		damagetextcolour = 0x00FF00FF,
 		totaltextcolour = 0x00FF00FF,
 		comboenabled = false,
+		p1guarddamageenabled = false,
+		p1guarddamagetextx = 8,
+		p1guarddamagetexty = 32,
+		p2guarddamageenabled = false,
+		p2guarddamagetextx = 296,
+		p2guarddamagetexty = 32,
+		guarddamagetextcolor = 0xFFFF00FF,
+		guarddamagetextcolordanger = 0xFF0000FF,
 	},
 
 	-- Interactive GUI
@@ -288,7 +296,7 @@ if nbuttons == 0 then
 	-- try to make a translation table
 
 	-- modified from dammits input display script
-	local a = {"Weak Punch", "Medium Punch", "Heavy Punch", "Weak Kick", "Medium Kick", "Heavy Kick", 
+	local a = {"Weak Punch", "Medium Punch", "Heavy Punch", "Weak Kick", "Medium Kick", "Heavy Kick",
 		["Weak Punch"] = 1,
 		["Medium Punch"] = 2,
 		["Heavy Punch"] = 3,
@@ -296,7 +304,7 @@ if nbuttons == 0 then
 		["Medium Kick"] = 5,
 		["Heavy Kick"] = 6,
 	}
-	local a2 = {"Weak Punch", "Medium Punch", "Strong Punch", "Weak Kick", "Medium Kick", "Strong Kick", 
+	local a2 = {"Weak Punch", "Medium Punch", "Strong Punch", "Weak Kick", "Medium Kick", "Strong Kick",
 		["Weak Punch"] = 1,
 		["Medium Punch"] = 2,
 		["Strong Punch"] = 3,
@@ -383,7 +391,7 @@ if fexists("tableio.lua") then
 			print("Can't read config file found for "..dirname..", using default config.")
 			config = defaultconfig
 		else -- if the file is loaded, make sure the contents are at least superficially correct
-			local check = true 
+			local check = true
 			for i, v in pairs(defaultconfig) do
 				for j, k in pairs(v) do
 					if not config[i] or type(k) ~= type(config[i][j]) then
@@ -429,7 +437,11 @@ checkAvailableFunctions = function() -- SETUP availablefunctions TABLE
 	if writePlayerTwoMeter then availablefunctions.writeplayertwometer = true end
 	if playerOneFacingLeft then availablefunctions.playeronefacingleft = true end
 	if playerTwoFacingLeft then availablefunctions.playertwofacingleft = true end
-	-- 
+	if readPlayerOneMaxGuardDamage then availablefunctions.readplayeronemaxguarddamage = true end
+	if readPlayerTwoMaxGuardDamage then availablefunctions.readplayertwomaxguarddamage = true end
+	if readPlayerOneGuardDamage then availablefunctions.readplayeroneguarddamage = true end
+	if readPlayerTwoGuardDamage then availablefunctions.readplayertwoguarddamage = true end
+	--
 	-- Hitbox functions
 	if hitboxesReg then availablefunctions.hitboxesreg = true end
 	if hitboxesRegAfter then availablefunctions.hitboxesregafter = true end
@@ -497,19 +509,19 @@ modulevars = {
 }
 
 setAvailableConstants = function()  -- SETUP modulevars CONSTANTS TABLES
-	if p1maxhealth then 
+	if p1maxhealth then
 		modulevars.p1.constants.maxhealth = p1maxhealth
 		modulevars.p1.maxhealth = modulevars.p1.maxhealth or p1maxhealth
 	end
-	if p2maxhealth then 
+	if p2maxhealth then
 		modulevars.p2.constants.maxhealth = p2maxhealth
-		modulevars.p2.maxhealth = modulevars.p2.maxhealth or p2maxhealth 
+		modulevars.p2.maxhealth = modulevars.p2.maxhealth or p2maxhealth
 	end
-	if p1maxmeter then 
+	if p1maxmeter then
 		modulevars.p1.constants.maxmeter = p1maxmeter
 		modulevars.p1.maxmeter = modulevars.p1.maxmeter or p1maxmeter
 	end
-	if p2maxmeter then 
+	if p2maxmeter then
 		modulevars.p2.constants.maxmeter = p2maxmeter
 		modulevars.p2.maxmeter = modulevars.p2.maxmeter or p2maxmeter
 	end
@@ -553,7 +565,19 @@ combovars = {
 		instantrefillmeter = config.p2.instantrefillmeter,
 		refillmeterenabled = config.p2.refillmeterenabled,
 	},
+}
 
+guardvars = {
+	p1 = {
+		guarddamage = 0,
+		maxguarddamage = 0,
+		guarddamagedanger = 0,
+	},
+	p2 = {
+		guarddamage = 0,
+		maxguarddamage = 0,
+		guarddamagedanger = 0,
+	},
 }
 
 hud = {
@@ -586,6 +610,15 @@ hud = {
 	damagetextcolour = config.hud.damagetextcolour,
 	totaltextcolour = config.hud.totaltextcolour,
 	comboenabled = config.hud.comboenabled,
+	-- guard damage
+    p1guarddamageenabled = config.hud.p1guarddamageenabled,
+    p1guarddamagetextx = config.hud.p1guarddamagetextx,
+    p1guarddamagetexty = config.hud.p1guarddamagetexty,
+    p2guarddamageenabled = config.hud.p2guarddamageenabled,
+    p2guarddamagetextx = config.hud.p2guarddamagetextx,
+    p2guarddamagetexty = config.hud.p2guarddamagetexty,
+    guarddamagetextcolor = config.hud.guarddamagetextcolor,
+    guarddamagetextcolordanger = config.hud.guarddamagetextcolordanger,
 }
 
 inputs = {
@@ -654,7 +687,7 @@ recording = {
 }
 
 ----------------------------------------------
--- 
+--
 ----------------------------------------------
 
 ----------------------------------------------
@@ -709,7 +742,7 @@ else
 end
 
 ----------------------------------------------
--- 
+--
 ----------------------------------------------
 
 ----------------------------------------------
@@ -752,7 +785,7 @@ createPopUpMenu = function(BaseMenu, releasefunc, selectfunc, autofunc, Elements
 				if (autofunc) then but.autofunc = autofunc(i) end
 			end
 
-			if (v.text) then 
+			if (v.text) then
 				but.text = v.text
 			else
 				but.text = tostring(i)
@@ -760,13 +793,13 @@ createPopUpMenu = function(BaseMenu, releasefunc, selectfunc, autofunc, Elements
 
 			if (v.x) then
 				but.x = v.x
-			else 
+			else
 				but.x = startx
 			end
 
 			if (v.y) then
 				but.y = v.y
-			else 
+			else
 				but.y = starty+(i-1)*10
 			end
 
@@ -856,7 +889,7 @@ createScrollingBar = function(BaseMenu, x, y, min, max, updatefunc, length, clos
 		local d = 0
 		if guiinputs.P1.left then
 
-			d = workingframes(guiinputs.P1.leftframecount) 
+			d = workingframes(guiinputs.P1.leftframecount)
 
 			if but.val-d>=min then
 				updatefunc(-d)
@@ -865,7 +898,7 @@ createScrollingBar = function(BaseMenu, x, y, min, max, updatefunc, length, clos
 			end
 		elseif guiinputs.P1.right then
 
-			d = workingframes(guiinputs.P1.rightframecount) 
+			d = workingframes(guiinputs.P1.rightframecount)
 
 			if but.val+d<=max then
 				updatefunc(d)
@@ -935,20 +968,20 @@ end
 
 function guiTableFormatting(t) -- produces a table of element ids that can be used for up/down/left/right navigation
 	--[[
-		takes a table of tables 
+		takes a table of tables
 		t = {
 		 {id1, x1, y1},
 		 {id2, x2, y2},
 		 ...
 		}
 	--]]
-	
+
 	local temp = copytable(t)
 	table.sort(temp, function(a,b) if a.y==b.y then return a.x<b.x end return a.y<b.y end) -- sort both here so the 'A' series lookups can give the exact coords
-	
+
 	local tab = {}
 	local pos = 1
-	
+
 	local i=1
 	local len
 	while i<=#temp do
@@ -964,10 +997,10 @@ function guiTableFormatting(t) -- produces a table of element ids that can be us
 		end
 		i=i+1
 	end
-	
+
 	tab.len = #tab
 	tab[tab.len].len = #tab[tab.len]
-	
+
 	return tab
 end
 
@@ -992,20 +1025,20 @@ function orTable(tab) -- or a table (check if not empty), this should be replace
 end
 
 function changeConfig(tab, index, value, otherlocation, otherindex) -- table in config (false or nil for base), index of variable to change, new value, otherlocation to change if necessary, otherindex if the index is different
-	
+
 	if value==nil then print("Tried to write a nil config value to "..index) end
-	
+
 	local c = {}
 
 	if not tab then c = config
 	else c = config[tab] end
 
 	if type(value)~= type(c[index]) and c[index]~=nil then -- make sure the right type is being passed
-		print("Tried to write a bad config value to "..index) 
-		print(type(c[index]).." expected, "..type(value).." given") 
-		return 
+		print("Tried to write a bad config value to "..index)
+		print(type(c[index]).." expected, "..type(value).." given")
+		return
 	end
-	
+
 	config.changed = true
 	c[index] = nil -- just to be sure
 	c[index] = value
@@ -1142,6 +1175,15 @@ local instantMeterP1 = function()
 	writePlayerOneMeter(modulevars.p1.maxmeter)
 end
 
+local guarddamageHandlerP1 = function()
+	if not availablefunctions.readplayeronemaxguarddamage then return end
+	if not availablefunctions.readplayeroneguarddamage then return end
+
+    guardvars.p1.guarddamage = readPlayerOneGuardDamage()
+    guardvars.p1.maxguarddamage = readPlayerOneMaxGuardDamage()
+    guardvars.p1.guarddamagedanger = 43 -- TODO: read this value from module
+end
+
 local comboHandlerP2 = function()
 
 	combovars.p2.healthdiff = modulevars.p2.previoushealth - modulevars.p2.health
@@ -1233,6 +1275,15 @@ local instantMeterP2 = function()
 	writePlayerTwoMeter(modulevars.p2.maxmeter)
 end
 
+local guarddamageHandlerP2 = function()
+	if not availablefunctions.readplayertwomaxguarddamage then return end
+	if not availablefunctions.readplayertwoguarddamage then return end
+
+    guardvars.p2.guarddamage = readPlayerTwoGuardDamage()
+    guardvars.p2.maxguarddamage = readPlayerTwoMaxGuardDamage()
+    guardvars.p2.guarddamagedanger = 43 -- TODO: read this value from module
+end
+
 local readGUIInputs = function()
 	local player, inp
 	guiinputs.P1.previousinputs = nil
@@ -1248,7 +1299,7 @@ local readGUIInputs = function()
 			guiinputs.P2[modulevars.constants.translationtable[modulevars.constants.translationtable[inp]]] = v
 		end
 	end
-	
+
 	--kb
 	guiinputs.KB.previousinputs = nil
 	guiinputs.KB.previousinputs = copytable(guiinputs.KB)
@@ -1312,7 +1363,7 @@ local combinePlayerInputs = function(P1, P2, other)
 			t[i] = v
 		end
 	end
-	
+
 	inputs.properties.enableinputset = true
 	return t
 end
@@ -1350,14 +1401,14 @@ local menuCheck = function()
 
 	inputs.properties.p1freeze = interactivegui.inmenu
 	inputs.properties.p2freeze = interactivegui.inmenu
-	
+
 	-- toggle hitboxes/inputs while in a menu
 	hitboxes.enabled = (not interactivegui.inmenu) and hitboxes.prev
 
 	-- find elements in HUDelements to adjust
 	if (interactivegui.inmenu and not interactivegui.movehud.enabled and availablefunctions.scrollinginputclear) then scrollingInputClear() end
 	for _,v in pairs(HUDElements or {}) do
-		if (v.name == "p1scrollinginput" or v.name == "p2scrollinginput") then -- (HP)+(!(I)P) scrolling inputs 
+		if (v.name == "p1scrollinginput" or v.name == "p2scrollinginput") then -- (HP)+(!(I)P) scrolling inputs
 			inputs.properties.scrollinginput.scrollingstate[tonumber(v.name:sub(2,2))] = ((interactivegui.movehud.enabled and inputs.properties.scrollinginput[v.name]) or ((not interactivegui.inmenu) and inputs.properties.scrollinginput[v.name]))
 		end
 		if (v.name == "p1simpleinput" or v.name == "p2simpleinput") then -- (HP)+(!(I)P) simple inputs
@@ -1404,10 +1455,10 @@ end
 
 SERIALISETABLE.p1.len = #SERIALISETABLE.p1 -- used for cleaning up inputs
 SERIALISETABLE.p2.len = SERIALISETABLE.p1.len
-	
+
 local serialiseInit = function(recordslot) -- set up compression, reduce the size of _stable to make the numbers actually smaller
 	local player, input, num
-	for i,_ in pairs(recordslot.constants) do 
+	for i,_ in pairs(recordslot.constants) do
 		player = i:sub(1,2)
 		input = i:sub(4)
 		if player == "P1" and recordslot._stable.p1[input] then
@@ -1494,7 +1545,7 @@ local Unserialise = function(inputs, _stable, constants) -- takes inputs (record
 	for i, v in pairs(other) do
 		t[i] = v
 	end
-	
+
 	local player, input
 	for i, v in pairs(constants) do -- apply constants
 		player = i:sub(1,2)
@@ -1525,7 +1576,7 @@ local toggleRecording = function(bool, vargs)
 
 	recording.swapplayers = not recording.replayP1
 
-	if swp~=false then -- we only want to toggle the inputs when toggleSwapInputs is not originally called		
+	if swp~=false then -- we only want to toggle the inputs when toggleSwapInputs is not originally called
 		if recording.swapplayers then
 			toggleSwapInputs(recording.enabled, vargs)
 		else
@@ -1569,7 +1620,7 @@ local logRecording = function()
 
 	if not recording.enabled then return end
 	recording[recording.recordingslot] = recording[recording.recordingslot] or {}
-	
+
 	local recordslot = recording[recording.recordingslot]
 	local tab = {
 		raw = {
@@ -1612,7 +1663,7 @@ local logRecording = function()
 	if orTable(tab.raw.p2) and not tab.raw.p2.Coin then  -- put finish on the last frame that something happens
 		recordslot.p2finish = fc - recording.framestart
 	end
-	
+
 	if availablefunctions.playeronefacingleft then
 		tab.p1facingleft = modulevars.p1.facingleft
 	end
@@ -1629,12 +1680,12 @@ end
 -- global, as it is used in ssf2x
 togglePlayBack = function(bool, vargs)
 	if interactivegui.movehud.enabled then return end
-	
+
 	local _playbackslot = recording.playbackslot or recording.recordingslot -- tmp for playbackslot
 	recording.playbackslot = nil
-	
+
 	local _rs = recording.recordingslot
-	
+
 	if recording.randomise then
 		local b = false
 		for i = 1, 5 do if recording[i][1] then b = true end end
@@ -1650,12 +1701,12 @@ togglePlayBack = function(bool, vargs)
 		-- make sure the recordslot is properly serialised if using randomise
 		recording.recordingslot = _playbackslot
 	end
-	
+
 	if vargs then vargs.playback = false end
 	toggleStates(vargs)
-	
+
 	recording.recordingslot = _rs -- restore recordingslot after serialise (through toggleRecord)
-	
+
 	local recordslot = recording[_playbackslot]
 	if not recordslot then return end
 
@@ -1666,7 +1717,7 @@ togglePlayBack = function(bool, vargs)
 
 	if bool==nil then recording.playback = not recording.playback
 	else recording.playback = bool end
-	
+
 	if not recording.replayP1 and not recording.replayP2 then
 		recording.replayP2 = true
 	end
@@ -1675,18 +1726,18 @@ togglePlayBack = function(bool, vargs)
 		recordslot.framestart = nil
 	else
 		recording.playbackslot = _playbackslot
-		
+
 		if recording.replayP1 and recording.replayP2 then
 			recordslot.start = recordslot.p1start
 			if (recordslot.start==nil and recordslot.p2start~=nil) or (recordslot.start>recordslot.p2start) then recordslot.start = recordslot.p2start end
 		elseif recording.replayP1 then
 			toggleSwapInputs(true)
-			recordslot.start = recordslot.p1start 
+			recordslot.start = recordslot.p1start
 		else
 			recordslot.start = recordslot.p2start
 		end
 		if recordslot.start==recordslot.finish then toggleSwapInputs(false) return end -- nothing recorded
-		
+
 		recording.startcounter = 0 -- randomise starting playback
 		if recording.maxstarttime == 0 then
 			recording.starttime = 0
@@ -1710,13 +1761,13 @@ local playBack = function()
 	if recording.skiptofinish and recordslot.finish then finish = recordslot.finish end
 
 	gui.text(1,1,"Slot "..recording.playbackslot.." ("..fc-recordslot.framestart.."/"..#recordslot..")")
-	
+
 	if recording.starttime > recording.startcounter then -- delay until replay starts
 		recording.startcounter = recording.startcounter+1
 		recordslot.framestart = recordslot.framestart+1
 		return
 	end
-	
+
 	if recording.maxstarttime>0 then gui.text(72,1,"Delay: "..recording.starttime) end -- show delay
 
 	if fc - recordslot.framestart + start > finish then
@@ -1744,7 +1795,7 @@ local playBack = function()
 	if recording.replayP1 and recording.replayP2 then
 		inputs.setinputs = combinePlayerInputs(raw.p1, raw.p2, raw.other)
 	elseif recording.replayP1 then
-		inputs.setinputs = combinePlayerInputs(raw.p1, inputs.p2, raw.other)	
+		inputs.setinputs = combinePlayerInputs(raw.p1, inputs.p2, raw.other)
 	else
 		inputs.setinputs = combinePlayerInputs(inputs.p1, raw.p2, raw.other)
 	end
@@ -1783,7 +1834,7 @@ local delayInputs = function()
 		end -- advance frame
 		inputbuffer[1] = {}
 		inputbuffer[1] = inputs.setinputs
-		
+
 		inputs.setinputs = inputbuffer[delayinputcount]
 	else -- raw
 		for i = delayinputcount, 2, -1 do
@@ -1796,10 +1847,10 @@ local delayInputs = function()
 		inputbuffer[1].p1 = inputs.p1 -- new inputs queued
 		inputbuffer[1].p2 = inputs.p2
 		inputbuffer[1].other = inputs.other
-		
+
 		inputs.setinputs = combinePlayerInputs(inputbuffer[delayinputcount].p1, inputbuffer[delayinputcount].p2, inputbuffer[delayinputcount].other) -- play input
 	end
-	
+
 end
 
 setInputs = function()
@@ -1823,7 +1874,7 @@ setDirection = function(player, ...) -- getting a player to hold down/up etc.
 	inputs.properties.p1hold = {}
 	inputs.properties.p2hold = {}
 
-	if player == 1 then 
+	if player == 1 then
 		if dir1 then inputs.properties.p1hold[dir1] = true end
 		if dir2 then inputs.properties.p1hold[dir2] = true end
 	end
@@ -1876,32 +1927,32 @@ if scrollingInputReg then -- if there's a scrolling input file loaded
 		},
 		Start
 	--]]
-	
+
 	-- change to 16x16 for displaying
 	for i = 1, 4 do	-- directions
 		icons[16][i] = gd.create(16,16)
 		icons[16][i]:copyResampled(img, 0, 0, 0, (i-1)*32, 16, 16, 32, 32)
 		icons[16][i] = icons[16][i]:gdStr()
 	end
-	
+
 	for i = 9, imgcnt do -- skip diagonals, rest of the buttons
 		icons[16][i-4] = gd.create(16,16)
 		icons[16][i-4]:copyResampled(img, 0, 0, 0, (i-1)*32, 16, 16, 32, 32)
 		icons[16][i-4] = icons[16][i-4]:gdStr()
 	end
-	
+
 	for i = 1,nbuttons do
 		helpButtons[i] = icons[16][i+4] -- assign buttons
 		y=y+32
 	end
-	
+
 else -- otherwise use these defaults
-	
+
 	for i = 1,nbuttons do
 		helpButtons[i] = gd.createFromPng("resources/info/"..i..".png")
 		helpButtons[i] = helpButtons[i]:gdStr()
 	end
-	
+
 end
 
 local buttonHandlerInputs = {
@@ -1951,12 +2002,12 @@ local buttonHandler = function(t)
 	--]]
 
 	t[1].button = t[1].button or "button1" -- just in case
-	
+
 	for i = 1, #t.funcs do
 		t[i] = t[i] or {name = " "}
 		t[i].button = t[i].button or "button"..(tonumber(t[i-1].button:sub(7))+1)
 	end
-	
+
 	t.len=#t
 
 	helpElements.more = helpElements.more or 0
@@ -2000,9 +2051,9 @@ local buttonHandler = function(t)
 		end
 		helpElements.len = math.min(nbuttons,helpElements.len)
 	end
-	
+
 	helpElements.name = t.funcs.name
-	
+
 end
 
 local toggledrawhelp = true
@@ -2014,9 +2065,9 @@ local drawHelp = function()
 	for i=1,nbuttons do if helpElements[i] and helpElements[i].func then helpElements[i].func(helpElements[i].buttonnum) end end -- run all the functions
 	if helpElements.funcs.other then helpElements.funcs.other() end
 	if helpElements.funcs.coin then helpElements.funcs.coin() end
-	
+
 	if not toggledrawhelp then return end
-	
+
 	local offset = helpElements.len*9
 	local i,l = 1, helpElements.len
 	while i<=l do
@@ -2059,10 +2110,10 @@ local callGUISelectionReleaseFunc = function()
 end
 
 local interactiveGUISelectionInfo = function()
-	
+
 	local info = interactiveguipages[interactivegui.page][interactivegui.selection].info
 	if not interactivegui.enabled or not info then return end
-	
+
 	local largest = 0
 	local x1, x2, xm, y2 = interactivegui.boxx, interactivegui.boxx2, interactivegui.boxxmid, interactivegui.boxy2
 
@@ -2107,34 +2158,34 @@ local drawInteractiveGUIFuncs = {
 			callGUISelectionReleaseFunc()
 		end
 	end,
-	
+
 	function(but) -- HKEY
 		if guiinputs.P1[but] and not guiinputs.P1.previousinputs[but] then
 			inputs.hotkeys.hotkeyin = true
 			blankKB()
 		end
 	end,
-	
+
 	function(but) -- INFO
 		if guiinputs.P1[but] then
 			interactiveGUISelectionInfo()
 		end
 	end,
-	
+
 	coin = function() end,
-	
-	back = function(but) 
+
+	back = function(but)
 		if guiinputs.P1[but] and not guiinputs.P1.previousinputs[but] then -- back button
 			interactiveGUISelectionBack()
 		end
 	end,
 
 	other = function() -- runs every frame regardless
-		
+
 		local s -- selection
 		local t = guipagesformatted[interactivegui.page] -- format table
 		local l -- location
-		
+
 		if not t then -- just in case
 			if guiinputs.P1.left and not guiinputs.P1.previousinputs.left then
 				changeInteractiveGuiSelection(interactivegui.selection-1)
@@ -2148,7 +2199,7 @@ local drawInteractiveGUIFuncs = {
 			end
 			return
 		end
-		
+
 		if guiinputs.P1.left and not guiinputs.P1.previousinputs.left then
 			s = interactivegui.selection
 			l = t["A"..s]
@@ -2207,7 +2258,7 @@ local drawInteractiveGUIFuncs = {
 					interactivegui.selection = t[l[1]+1][t[l[1]+1].len]
 				end
 			end
-		end	
+		end
 	end,
 	name = "drawInteractiveGUIFuncs",
 }
@@ -2222,8 +2273,8 @@ local drawInteractiveGUI = function()
 
 	boxx = interactivegui.boxx
 	boxy = interactivegui.boxy
-	boxx2 = interactivegui.boxx2 
-	boxy2 = interactivegui.boxy2 
+	boxx2 = interactivegui.boxx2
+	boxy2 = interactivegui.boxy2
 	bgcolour = interactivegui.bgcolour
 	olcolour = interactivegui.olcolour
 
@@ -2451,7 +2502,7 @@ end
 
 toggleMoveHUD = function(bool, vargs)
 	if #HUDElements==0 then return end
-	
+
 	if vargs then vargs.movehud = false end
 	toggleStates(vargs)
 	if bool then
@@ -2459,18 +2510,18 @@ toggleMoveHUD = function(bool, vargs)
 		guiinputs.P1.previousinputs.button1 = true -- stop double pressing
 		HUDElements.FormatTable = guiTableFormatting(HUDElementsParse(HUDElements)) -- for menu navigation
 		if availablefunctions.scrollinginputsetsampleinput then scrollingInputSetSampleInput() end
-	elseif bool == false then 
+	elseif bool == false then
 		interactivegui.movehud.enabled = false
 		if availablefunctions.scrollinginputclear then scrollingInputClear() end
 	else interactivegui.movehud.enabled = not interactivegui.movehud.enabled end
-	
+
 	interactivegui.movehud.selected = false
 end
 
 function drawHUD() -- all parts of the hud should be dropped in here
 
 	if interactivegui.inmenu and not interactivegui.movehud.enabled then return end
-	
+
 	for _, v in ipairs(HUDElements) do
 		if v.enabled() then v.drawfunc() end
 	end
@@ -2538,7 +2589,7 @@ local moveHUDFuncs = {
 	other = function()
 		local x = HUDElements[interactivegui.movehud.selection].x()
 		local y = HUDElements[interactivegui.movehud.selection].y()
-		if interactivegui.movehud.selected then 
+		if interactivegui.movehud.selected then
 			local d = 0
 			local pos
 			if guiinputs.P1.left then
@@ -2546,7 +2597,7 @@ local moveHUDFuncs = {
 				pos = HUDElements[interactivegui.movehud.selection].x(x+d)
 				if (pos < 0) then HUDElements[interactivegui.movehud.selection].x(interactivegui.sw) end -- stay in bounds
 			elseif guiinputs.P1.right then
-				d = hudworkingframes(guiinputs.P1.rightframecount) 
+				d = hudworkingframes(guiinputs.P1.rightframecount)
 				pos = HUDElements[interactivegui.movehud.selection].x(x+d)
 				if (pos > interactivegui.sw) then HUDElements[interactivegui.movehud.selection].x(0) end -- stay in bounds
 			end
@@ -2556,7 +2607,7 @@ local moveHUDFuncs = {
 				pos = HUDElements[interactivegui.movehud.selection].y(y+d)
 				if (pos < 0) then HUDElements[interactivegui.movehud.selection].y(interactivegui.sh) end -- stay in bounds
 			elseif guiinputs.P1.down then
-				d = hudworkingframes(guiinputs.P1.downframecount) 
+				d = hudworkingframes(guiinputs.P1.downframecount)
 				pos = HUDElements[interactivegui.movehud.selection].y(y+d)
 				if (pos > interactivegui.sh) then HUDElements[interactivegui.movehud.selection].y(0) end -- stay in bounds
 			end
@@ -2591,7 +2642,7 @@ local moveHUDFuncs = {
 					interactivegui.movehud.selection = t[l[1]][l[2]+1]
 				end
 			end
-			
+
 			if guiinputs.P1.up and not guiinputs.P1.previousinputs.up then
 				s = interactivegui.movehud.selection
 				t = HUDElements.FormatTable
@@ -2644,11 +2695,11 @@ local moveHUDInteract = function()
 		col = bit.bor(0xff0000ff, 0x00040000*(fc%40))
 		t[1].name = "BACK"
 	end
-	
+
 	local x = HUDElements[interactivegui.movehud.selection].x()
 	local y = HUDElements[interactivegui.movehud.selection].y()
 	t.funcs.name = HUDElements[interactivegui.movehud.selection].name
-	
+
 	local temp
 	if helpElements.name ~= t.funcs.name then -- if this needs to be changed
 		for _,v in ipairs(HUDElements[interactivegui.movehud.selection].movehud or {}) do
@@ -2659,7 +2710,7 @@ local moveHUDInteract = function()
 			table.insert(t.funcs, v.func)
 		end
 	end
-	
+
 	gui.pixel(x, y, col)
 	col = 0xffffffff
 	local enabled = HUDElements[interactivegui.movehud.selection].enabled()
@@ -2667,16 +2718,16 @@ local moveHUDInteract = function()
 		col = 0x0000ffff
 		t[2].name = "SHOW"
 	end
-	
+
 	local str = "("..x..","..y..")"
 	local dispx, dispy = x, y-10
 	if #str*4+x>interactivegui.sw then dispx = interactivegui.sw - #str*4 end -- keep in bounds
 	if dispy<0 then dispy = 0 end -- keep in bounds
 	gui.text(dispx, dispy, str, col)
-	
+
 	-- don't display the tooltip if it will cover up elements
 	if y>=interactivegui.sh-27 and (x>=(interactivegui.sw/2-helpElements.len*9) and x<=(interactivegui.sw/2+helpElements.len*9)) then toggledrawhelp=false else toggledrawhelp=true end
-	
+
 	buttonHandler(t)
 end
 
@@ -2700,10 +2751,20 @@ local drawcomboHUD = function()
    	gui.text(hud.combotextx,hud.combotexty+20,"Total: " .. combovars.p2.comboDamage,hud.totaltextcolour)
 end
 
+local formatGuardDamageString = function(damage, maxDamage)
+    if damage == nil then damage = 0 end
+    if maxDamage == nil then maxDamage = 0 end
+    return string.format("%02d/%02d", damage, maxDamage)
+end
+
+local getGuardDamageColor = function(damage, dangerDamage)
+    if damage < dangerDamage then return hud.guarddamagetextcolor else return hud.guarddamagetextcolordanger end
+end
+
 toggleReplayEditor = function(bool, vargs)
 	-- need state switching
 
-	if bool==nil then interactivegui.replayeditor.enabled = not interactivegui.replayeditor.enabled 
+	if bool==nil then interactivegui.replayeditor.enabled = not interactivegui.replayeditor.enabled
 	else interactivegui.replayeditor.enabled=bool end
 
 	if vargs then vargs.replayeditor = false end
@@ -2719,7 +2780,7 @@ toggleReplayEditor = function(bool, vargs)
 					interactivegui.replayeditor.inputs[j][i].serial.player = recordslot[i].serial -- copy across necessary values
 					interactivegui.replayeditor.inputs[j][i].serial.other = {}
 				else
-					interactivegui.replayeditor.inputs[j][i].serial.player = recordslot[i].serial.player 
+					interactivegui.replayeditor.inputs[j][i].serial.player = recordslot[i].serial.player
 					interactivegui.replayeditor.inputs[j][i].serial.other = recordslot[i].serial.other
 				end
 				Unserialise(interactivegui.replayeditor.inputs[j][i], recordslot._stable, recordslot.constants) -- should be able to do these in one and buffer it
@@ -2770,11 +2831,11 @@ toggleReplayEditor = function(bool, vargs)
 				if orTable(recordslot[i].raw.p2) and not recordslot[i].raw.p2.Coin then  -- put finish on the last frame that something happens
 					recordslot.p2finish = i
 				end
-				
+
 				if availablefunctions.playeronefacingleft then
 					recordslot[i].p1facingleft = interactivegui.replayeditor.inputs[j][i].p1facingleft
 				end
-				
+
 				if availablefunctions.playertwofacingleft then
 					recordslot[i].p2facingleft = interactivegui.replayeditor.inputs[j][i].p2facingleft
 				end
@@ -2797,11 +2858,11 @@ local drawReplayEditorFuncs = {
 				reinputs[interactivegui.replayeditor.editframe] = {raw={p1={}, p2={}}}
 				reinputs[interactivegui.replayeditor.editframe].raw.p2=copytable(inputs.p1) -- new value
 				reinputs[interactivegui.replayeditor.editframe].p2facingleft = modulevars.p2.facingleft
-				
+
 				recordslot._stable = {} -- make sure this updates
 				recordslot._stable.p1 = copytable(SERIALISETABLE.p1)
 				recordslot._stable.p2 = copytable(SERIALISETABLE.p2)
-				
+
 				if (orTable(inputs.p1)) then -- if an input has been passed temp update start/finish for visuals
 					if (recordslot.p2start and interactivegui.replayeditor.editframe<recordslot.p2start) then
 						recordslot.p2start = interactivegui.replayeditor.editframe
@@ -2810,7 +2871,7 @@ local drawReplayEditorFuncs = {
 						recordslot.p2finish = interactivegui.replayeditor.editframe
 					end
 				end
-				
+
 				interactivegui.replayeditor.changed = interactivegui.replayeditor.changed or {} -- this slot has updated
 				interactivegui.replayeditor.changed[recording.recordingslot] = true
 
@@ -2818,7 +2879,7 @@ local drawReplayEditorFuncs = {
 				interactivegui.replayeditor.framestart=nil
 			end
 		elseif guiinputs.P1[but] and not guiinputs.P1.previousinputs[but] then -- starts the timer
-			interactivegui.replayeditor.framestart = fc 
+			interactivegui.replayeditor.framestart = fc
 		end
 	end,
 	function(but) -- copy
@@ -2833,7 +2894,7 @@ local drawReplayEditorFuncs = {
 				reinputs[i+1].raw.p2=copytable(reinputs[i].raw.p2)
 				reinputs[i+1].p2facingleft = reinputs[i].p2facingleft
 			end
-			
+
 			local recordslot = recording[recording.recordingslot] -- update start/finish for visuals
 			if (recordslot.p2start and interactivegui.replayeditor.editframe<recordslot.p2start) then -- plus one
 				recordslot.p2start = recordslot.p2start+1
@@ -2853,7 +2914,7 @@ local drawReplayEditorFuncs = {
 			interactivegui.replayeditor.inputs[recording.recordingslot][interactivegui.replayeditor.editframe] = {raw={p1={}, p2={}}}
 
 			local recordslot = recording[recording.recordingslot]
-			
+
 			local temp = true -- update start/finish for visuals
 			if recordslot.p2start == interactivegui.replayeditor.editframe then -- iterate forward
 				for i = recordslot.p2start+1, #interactivegui.replayeditor.inputs[recording.recordingslot] do
@@ -2896,7 +2957,7 @@ local drawReplayEditorFuncs = {
 			recordslot._stable = {} -- need to redo stables/starts&finishes
 			recordslot._stable.p1 = copytable(SERIALISETABLE.p1)
 			recordslot._stable.p2 = copytable(SERIALISETABLE.p2)
-			
+
 			local temp = true -- update start/finish for visuals
 			if recordslot.p2start == interactivegui.replayeditor.editframe then -- iterate forward
 				for i = recordslot.p2start+1, #interactivegui.replayeditor.inputs[recording.recordingslot] do
@@ -2930,7 +2991,7 @@ local drawReplayEditorFuncs = {
 		if interactivegui.replayeditor.framestart then return end
 		if guiinputs.P1[but] and not guiinputs.P1.previousinputs[but] then
 			if (interactivegui.replayeditor.editframe==#interactivegui.replayeditor.inputs[recording.recordingslot]+1) then
-				interactivegui.replayeditor.inputs[recording.recordingslot][interactivegui.replayeditor.editframe] = {raw={p1={}, p2={}}}				
+				interactivegui.replayeditor.inputs[recording.recordingslot][interactivegui.replayeditor.editframe] = {raw={p1={}, p2={}}}
 			else
 				local reinputs = interactivegui.replayeditor.inputs[recording.recordingslot]
 				for i=#reinputs,interactivegui.replayeditor.editframe,-1 do
@@ -3105,18 +3166,18 @@ local readHotkeyInFuncs = {
 local readHotkeyIn = function()
 	if not inputs.hotkeys.hotkeyin then return end
 	drawKB(inputs.properties.KB.kbinputxoffset,inputs.properties.KB.kbinputyoffset)
-	
+
 	local boxx = interactivegui.boxx
 	local boxx2 = interactivegui.boxx2
 	local boxy = interactivegui.boxy
-	
+
 	gui.box(boxx,boxy-10,boxx2,boxy,"green","black")
 	gui.text((boxx2+boxx)/2 - 14,boxy-8,"HOTKEYS")
-	
+
 	local t = {{}, funcs=readHotkeyInFuncs}
 	if interactiveguipages[interactivegui.page][interactivegui.selection].info then t[1] = {name="INFO", button="button1"} end
 	buttonHandler(t) -- overload inputs
-	
+
 	local highest = 0
 	for i,v in pairs(guiinputs.KB.inputcount) do
 		if v>highest then highest=v end
@@ -3144,7 +3205,7 @@ toggleStates = function(vargs) -- nil = false, true = true, false = skip
 	if vargs["playback"]==nil then togglePlayBack(false, vargs) elseif vargs["playback"] then togglePlayBack(true, vargs) end
 	if vargs["interactiveguienabled"]==nil then toggleInteractiveGUI(false, vargs) elseif vargs["interactiveguienabled"] then toggleInteractiveGUI(true, vargs) end
 	if vargs["movehud"]==nil then toggleMoveHUD(false, vargs) elseif vargs["movehud"] then toggleMoveHUD(true, vargs) end
-	if vargs["replayeditor"]==nil then toggleReplayEditor(false, vargs) elseif vargs["replayeditor"] then toggleReplayEditor(true, vargs) end 
+	if vargs["replayeditor"]==nil then toggleReplayEditor(false, vargs) elseif vargs["replayeditor"] then toggleReplayEditor(true, vargs) end
 end
 
 setRegisters = function() -- pre-calc stuff
@@ -3154,7 +3215,7 @@ setRegisters = function() -- pre-calc stuff
 
 	if availablefunctions.playertwofacingleft then
 		recording.autoturn = true
-	else 
+	else
 		print "Can't auto-swap directions in replays"
 	end
 
@@ -3306,6 +3367,20 @@ setRegisters = function() -- pre-calc stuff
 	else
 		print "Can't auto-refill P2 meter"
 	end
+
+	if availablefunctions.readplayeroneguarddamage and availablefunctions.readplayeronemaxguarddamage then
+	    table.insert(HUDElements, {name = "p1guarddamagetext", x = function(n) if n then changeConfig("hud", "p1guarddamagetextx", n, hud) end return hud.p1guarddamagetextx end, y = function(n) if n then changeConfig("hud", "p1guarddamagetexty", n, hud) end return hud.p1guarddamagetexty end, enabled = function(n) if n~=nil then changeConfig("hud", "p1guarddamageenabled", n, hud) end return hud.p1guarddamageenabled end, drawfunc = function() gui.text(hud.p1guarddamagetextx, hud.p1guarddamagetexty, formatGuardDamageString(guardvars.p1.guarddamage, guardvars.p1.maxguarddamage), getGuardDamageColor(guardvars.p1.guarddamage, guardvars.p1.guarddamagedanger)) end})
+	    table.insert(registers.registerafter, guarddamageHandlerP1)
+    else
+        print "Can't display P1 guard damage"
+    end
+
+	if availablefunctions.readplayertwoguarddamage and availablefunctions.readplayertwomaxguarddamage then
+	    table.insert(HUDElements, {name = "p2guarddamagetext", x = function(n) if n then changeConfig("hud", "p2guarddamagetextx", n, hud) end return hud.p2guarddamagetextx end, y = function(n) if n then changeConfig("hud", "p2guarddamagetexty", n, hud) end return hud.p2guarddamagetexty end, enabled = function(n) if n~=nil then changeConfig("hud", "p2guarddamageenabled", n, hud) end return hud.p2guarddamageenabled end, drawfunc = function() gui.text(hud.p2guarddamagetextx, hud.p2guarddamagetexty, formatGuardDamageString(guardvars.p2.guarddamage, guardvars.p2.maxguarddamage), getGuardDamageColor(guardvars.p2.guarddamage, guardvars.p2.guarddamagedanger)) end})
+	    table.insert(registers.registerafter, guarddamageHandlerP2)
+    else
+        print "Can't display P2 guard damage"
+    end
 
 	if availablefunctions.hitboxesreg and availablefunctions.hitboxesregafter then
 		table.insert(registers.guiregister, hitboxesReg)
