@@ -63,8 +63,18 @@ gamedefaultconfig = {
         p2meterx=222,
         p2metery=208,
         p2meterenabled=true,
+		p1guarddamagetextx = 8,
+		p1guarddamagetexty = 32,
+		p1guarddamagemetertopy = 33,
+		p1guarddamagemeterleftx = 30,
         p1guarddamageenabled=true,
+		p2guarddamagetextx = 296,
+		p2guarddamagetexty = 32,
+		p2guarddamagemetertopy = 33,
+		p2guarddamagemeterrightx = 292,
         p2guarddamageenabled=true,
+		guarddamagemeterheight = 4,
+		guarddamagemeterwidth = 30,
     },
 }
 
